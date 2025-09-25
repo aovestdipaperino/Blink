@@ -1,0 +1,4 @@
+broker_ports: [9092]
+max_memory: "512K"
+
+enable_consumer_groups: true

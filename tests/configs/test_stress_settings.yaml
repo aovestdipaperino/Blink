@@ -1,0 +1,5 @@
+broker_ports: [9092]
+kafka_cfg_num_partitions: 16
+max_memory: "8MB"
+
+record_storage_path: "./stress_offload"

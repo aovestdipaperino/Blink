@@ -1,0 +1,16 @@
+record_storage_path: "./records"
+boot_topic: "hits"
+kafka_cfg_num_partitions: 8
+use_last_accessed_offset: true
+# Plugin Configuration
+# List of WASM plugin files to load
+plugin_paths:
+  # Example: Uncomment the line below to load the demo plugin
+  # - "demo-plugin/demo-plugin.wasm"
+# List of Kafka APIs to trace with info! logging (empty list means no tracing)
+# Can also be set via TRACE environment variable: export TRACE="PRODUCE,FETCH"
+# Example: trace: ["PRODUCE", "FETCH"]
+trace: []
+# GCP Logging Configuration
+# Set GCP_PROJECT_ID environment variable to enable uploading logs to Google Cloud Logging
+# export GCP_PROJECT_ID="your-gcp-project-id"

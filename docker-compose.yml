@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Blink broker - standard performance
+  blink:
+    build: .
+    container_name: blink-standard
+    ports:
+      - "3030:3030"  # HTTP metrics/REST API
+      - "9092:9092"  # Kafka protocol
+    environment:
+      - LOG_LEVEL=INFO
+      - RETENTION=300s
+    volumes:
+      - ./settings.yaml:/app/settings.yaml
+    restart: unless-stopped
+    profiles:
+      - standard
+
+  # Blink broker - with profiling enabled
+  blink-profiled:
+    build: .
+    container_name: blink-profiled
+    ports:
+      - "3031:3030"  # HTTP metrics/REST API (different port to avoid conflicts)
+      - "9093:9092"  # Kafka protocol (different port to avoid conflicts)
+    environment:
+      - LOG_LEVEL=INFO
+      - RETENTION=300s
+      - PROFILE=true
+    volumes:
+      - ./settings.yaml:/app/settings.yaml
+    restart: unless-stopped
+    profiles:
+      - profiled
+
+  # Development setup - both services for comparison
+  blink-dev-standard:
+    build: .
+    container_name: blink-dev-standard
+    ports:
+      - "3030:3030"
+      - "9092:9092"
+    environment:
+      - LOG_LEVEL=DEBUG
+      - RETENTION=60s
+    volumes:
+      - ./settings.yaml:/app/settings.yaml
+    profiles:
+      - dev
+
+  blink-dev-profiled:
+    build: .
+    container_name: blink-dev-profiled
+    ports:
+      - "3031:3030"
+      - "9093:9092"
+    environment:
+      - LOG_LEVEL=DEBUG
+      - RETENTION=60s
+      - PROFILE=true
+    volumes:
+      - ./settings.yaml:/app/settings.yaml
+    profiles:
+      - dev
+
+  # Prometheus monitoring (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: blink-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./tools/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    profiles:
+      - monitoring
+      - dev
+
+networks:
+  default:
+    name: blink-network

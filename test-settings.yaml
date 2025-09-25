@@ -1,0 +1,21 @@
+record_storage_path: "./test-records"
+boot_topic: "test-topic"
+kafka_cfg_num_partitions: 2
+use_last_accessed_offset: true
+rest_port: 30005
+broker_ports: [9092, 9094]
+
+# Plugin Configuration for Testing
+plugin_paths:
+  - "demo-plugin/demo-plugin.wasm"
+
+# Test Configuration
+purge_delay_seconds: 1
+obliteration_warning_interval_minutes: 1
+enable_consumer_groups: false
+heap_memory_factor: 1.0
+# Logging
+# export LOG_LEVEL=DEBUG for verbose plugin logs
+
+# GCP Logging disabled for testing
+# GCP_PROJECT_ID not set

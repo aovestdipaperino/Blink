@@ -1,0 +1,21 @@
+# Test settings for Blink - configured for offload file testing
+# Uses a very small memory limit to easily trigger offloadover
+
+# Message expiration time in milliseconds
+retention: "5s"
+
+# Kafka broker ports
+broker_ports: [9092]
+
+# Maximum memory before offloading to disk
+# Set very low (1MB) for testing offload functionality
+max_memory: "1MB"
+
+# Directory for offload files
+record_storage_path: "./blink_offload"
+
+# Enable consumer groups functionality
+enable_consumer_groups: true
+
+# Enable skipped batch checking for testing
+check_for_skipped_batches: true

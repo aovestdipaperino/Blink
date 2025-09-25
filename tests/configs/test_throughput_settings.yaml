@@ -1,0 +1,12 @@
+retention: "10m"
+rest_port: 30006
+broker_ports: [9092]
+kafka_cfg_num_partitions: 8
+max_memory: "16MB"
+
+# Throughput-optimized settings
+kafka_cfg_default_replication_factor: 1
+kafka_cfg_min_insync_replicas: 1
+kafka_cfg_unclean_leader_election_enable: true
+kafka_cfg_log_flush_interval_messages: 10000
+kafka_cfg_log_flush_interval_ms: 1000
