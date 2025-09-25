@@ -1,0 +1,29 @@
+package blink:plugin@0.1.0;
+
+interface host {
+    // Log levels for the host logging function
+    enum log-level {
+        trace,
+        debug,
+        info,
+        warn,
+        error,
+    }
+
+    // Host function: allows plugin to log messages to the host
+    log: func(level: log-level, message: string);
+}
+
+interface plugin {
+    // Initialize the plugin, returns an optional port number or None
+    init: func() -> option<u16>;
+
+    // Handle a record being produced
+    // Returns true to continue processing, false to reject the record
+    on-record: func(topic: string, partition: u32, key: option<string>, value: string) -> bool;
+}
+
+world blink-plugin {
+    import host;
+    export plugin;
+}
