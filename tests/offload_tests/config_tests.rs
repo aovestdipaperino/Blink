@@ -4,14 +4,13 @@
 // Author: Enzo Lombardi
 //
 use crate::common::{connect_to_kafka, create_topic, delete_topic, produce_records};
-use blink::kafka::storage::MEMORY;
+use blink::alloc::global_allocator;
 use blink::settings::SETTINGS;
 use blink::util::Util;
 use kafka_protocol::messages::TopicName;
 use kafka_protocol::protocol::StrBytes;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -178,7 +177,7 @@ async fn test_memory_limit_boundary_conditions() {
         sleep(Duration::from_millis(50)).await;
     }
 
-    let memory_after = MEMORY.load(Ordering::Relaxed);
+    let memory_after = global_allocator().current_allocated();
     println!("Memory after boundary test: {}", memory_after);
 
     sleep(Duration::from_millis(500)).await;
@@ -248,7 +247,7 @@ async fn test_no_offloading_under_memory_limit() {
     );
 
     // Verify memory usage is reasonable (if we can track it)
-    let current_memory = MEMORY.load(Ordering::Relaxed);
+    let current_memory = global_allocator().current_allocated();
     println!("Memory usage after small records: {} bytes", current_memory);
 
     // Cleanup
@@ -339,7 +338,7 @@ async fn test_memory_tracking_accuracy() {
     create_topic(topic_name.clone(), &mut socket, 1);
 
     // Get initial memory usage
-    let initial_memory = MEMORY.load(Ordering::Relaxed);
+    let initial_memory = global_allocator().current_allocated();
     println!("Initial memory usage: {} bytes", initial_memory);
 
     // Produce a known amount of data
@@ -376,7 +375,7 @@ async fn test_memory_tracking_accuracy() {
     );
 
     // Check memory tracking is working (memory should change from initial)
-    let after_produce_memory = MEMORY.load(Ordering::Relaxed);
+    let after_produce_memory = global_allocator().current_allocated();
     let actual_increase = after_produce_memory - initial_memory;
 
     println!("Initial memory: {} bytes", initial_memory);

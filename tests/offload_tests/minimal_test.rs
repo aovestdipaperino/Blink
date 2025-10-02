@@ -70,10 +70,9 @@ mod minimal_tests {
     #[tokio::test]
     async fn test_memory_counter_exists() {
         crate::common::ensure_settings_initialized();
-        use blink::kafka::storage::MEMORY;
-        use std::sync::atomic::Ordering;
+        use blink::alloc::global_allocator;
 
-        let current_memory = MEMORY.load(Ordering::Relaxed);
+        let current_memory = global_allocator().current_allocated();
         println!("Current memory usage: {} bytes", current_memory);
         // Memory counter is accessible if we can load it without panicking
         println!("✓ Memory counter is accessible");

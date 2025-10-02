@@ -3,6 +3,7 @@
 // (c) 2025 Cleafy S.p.A.
 // Author: Enzo Lombardi
 //
+use crate::alloc::global_allocator;
 use crate::kafka::broker::BROKER;
 use crate::kafka::counters::{AGGRESSIVE_CLIENT, NOTIFY_COUNTER};
 use crate::kafka::counters::{
@@ -25,8 +26,8 @@ use nano_wal::{EntryRef, Wal, WalOptions};
 use once_cell::sync::Lazy;
 use std::collections::VecDeque;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize};
-use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::sync::Notify;
@@ -59,7 +60,8 @@ fn update_disk_space_counters(size_change_bytes: f64) {
 
 static EMPTY_BUFFER: Bytes = Bytes::from_static(&[]);
 
-pub static MEMORY: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
+// Mutex to prevent race conditions during memory checks and allocations
+static MEMORY_ALLOCATION_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 static FIRST_OFFLOAD_LOGGED: AtomicBool = AtomicBool::new(false);
 
@@ -73,8 +75,8 @@ pub struct RecordBatch {
 impl RecordBatch {
     /// Create a new RecordBatch and increment memory counters
     pub fn new(records: Bytes, assigned_offset: i64) -> Self {
-        // Increment memory counters when RecordBatch is created
-        MEMORY.fetch_add(records.len(), std::sync::atomic::Ordering::Relaxed);
+        // Only increment the Prometheus counter for monitoring
+        // Actual memory tracking is done by GLOBAL_ALLOCATOR
         IN_MEMORY_QUEUE_SIZE.add(records.len() as f64);
 
         RecordBatch {
@@ -86,10 +88,8 @@ impl RecordBatch {
 
 impl Drop for RecordBatch {
     fn drop(&mut self) {
-        // Decrement memory counters when RecordBatch is dropped
-        // Note: This tracks memory per RecordBatch instance, not per unique data
-        // Cloned RecordBatch instances will each decrement counters when dropped
-        MEMORY.fetch_sub(self.records.len(), std::sync::atomic::Ordering::Relaxed);
+        // Decrement Prometheus counter for monitoring
+        // Actual memory tracking is done by GLOBAL_ALLOCATOR
         IN_MEMORY_QUEUE_SIZE.sub(self.records.len() as f64);
     }
 }
@@ -318,7 +318,7 @@ impl PartitionStorage {
         if SETTINGS.record_storage_path.is_none() {
             return false;
         }
-        let current_memory = MEMORY.load(std::sync::atomic::Ordering::Relaxed);
+        let current_memory = global_allocator().current_allocated();
         current_memory >= SETTINGS.max_memory
     }
 
@@ -575,7 +575,7 @@ impl Storage {
         if PartitionStorage::global_should_offload() {
             // Log info message the first time we start offloading to disk
             if !FIRST_OFFLOAD_LOGGED.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                let current_memory = MEMORY.load(std::sync::atomic::Ordering::Relaxed);
+                let current_memory = global_allocator().current_allocated();
                 info!(
                     "🗄️  Starting to log batches to disk - Memory usage: {:.2}MB / {:.2}MB (threshold: {:.2}MB)",
                     current_memory as f64 / 1_048_576.0,
@@ -1288,6 +1288,9 @@ impl Storage {
         records: Bytes,
     ) -> Result<i64, ResponseError> {
         profile!(BlinkProfileOp::StorageStoreRecordBatch, {
+            // Acquire lock to prevent race conditions in memory checking and allocation
+            let _guard = MEMORY_ALLOCATION_LOCK.lock().unwrap();
+
             let store = &self.topic_partition_store;
             let mut value = store
                 .get_mut(&(*topic_id, partition_index))

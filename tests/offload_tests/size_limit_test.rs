@@ -4,12 +4,11 @@
 // Author: Enzo Lombardi
 //
 use crate::common::{connect_to_kafka, create_topic, delete_topic, produce_records};
-use blink::kafka::storage::MEMORY;
+use blink::alloc::global_allocator;
 use blink::settings::SETTINGS;
 use blink::util::Util;
 use kafka_protocol::messages::TopicName;
 use kafka_protocol::protocol::StrBytes;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -46,7 +45,7 @@ async fn test_find_max_record_size() {
     for size in test_sizes {
         println!("\n--- Testing record size: {} KB ---", size / 1024);
 
-        let before_memory = MEMORY.load(Ordering::Relaxed);
+        let before_memory = global_allocator().current_allocated();
         println!("Memory before: {} KB", before_memory / 1024);
 
         let data = "x".repeat(size);
@@ -56,7 +55,7 @@ async fn test_find_max_record_size() {
         // Try to produce the record
         match produce_records(topic_name.clone(), 0, &vec![record], &mut socket) {
             Ok(()) => {
-                let after_memory = MEMORY.load(Ordering::Relaxed);
+                let after_memory = global_allocator().current_allocated();
                 println!(
                     "✅ SUCCESS - Size {} KB works (memory after: {} KB, increase: {} KB)",
                     size / 1024,
@@ -113,7 +112,7 @@ async fn test_find_max_record_size() {
         max_working_size / 1024
     );
 
-    let final_memory = MEMORY.load(Ordering::Relaxed);
+    let final_memory = global_allocator().current_allocated();
     println!("Final memory usage: {} KB", final_memory / 1024);
     println!("Offload threshold: {} KB", SETTINGS.max_memory / 1024);
     println!("Above threshold: {}", final_memory >= SETTINGS.max_memory);
@@ -159,7 +158,7 @@ async fn test_accumulative_memory_usage() {
     );
 
     for i in 0..max_records {
-        let before_memory = MEMORY.load(Ordering::Relaxed);
+        let before_memory = global_allocator().current_allocated();
 
         let data = "x".repeat(record_size);
         let key = format!("key_{}", i);
@@ -173,7 +172,7 @@ async fn test_accumulative_memory_usage() {
 
         match produce_records(topic_name.clone(), 0, &vec![record], &mut socket) {
             Ok(()) => {
-                let after_memory = MEMORY.load(Ordering::Relaxed);
+                let after_memory = global_allocator().current_allocated();
                 println!(
                     "✅ Record {} produced (memory after: {} KB, increase: {} KB)",
                     i,
@@ -229,7 +228,7 @@ async fn test_accumulative_memory_usage() {
         sleep(Duration::from_millis(100)).await;
     }
 
-    let final_memory = MEMORY.load(Ordering::Relaxed);
+    let final_memory = global_allocator().current_allocated();
     println!("\nFinal memory usage: {} KB", final_memory / 1024);
 
     // Cleanup

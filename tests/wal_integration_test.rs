@@ -9,7 +9,6 @@
 
 use blink::kafka::storage::{PartitionStorage, QueueRecord, RecordBatch};
 use bytes::Bytes;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 /// Helper to create test data
@@ -182,6 +181,6 @@ async fn test_memory_tracking() {
     assert_eq!(partition_storage.queue.len(), 1);
 
     // Verify memory counter is tracked
-    let current_memory = blink::kafka::storage::MEMORY.load(Ordering::Relaxed);
+    let current_memory = blink::alloc::global_allocator().current_allocated();
     assert!(current_memory > 0, "Memory tracking should be active");
 }

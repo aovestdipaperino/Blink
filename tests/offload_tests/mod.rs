@@ -9,14 +9,13 @@ mod minimal_test;
 mod size_limit_test;
 
 use crate::common::{connect_to_kafka, create_topic, delete_topic, fetch_records, produce_records};
-use blink::kafka::storage::MEMORY;
+use blink::alloc::global_allocator;
 use blink::settings::SETTINGS;
 use blink::util::Util;
 use kafka_protocol::messages::TopicName;
 use kafka_protocol::protocol::StrBytes;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -603,7 +602,7 @@ async fn test_offload_recovery_after_fetch() {
     sleep(Duration::from_millis(500)).await;
 
     // Check that system handled memory pressure correctly
-    let _current_memory = MEMORY.load(Ordering::Relaxed);
+    let _current_memory = global_allocator().current_allocated();
     let total_produced = phase1_successful + phase3_successful;
 
     println!(

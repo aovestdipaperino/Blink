@@ -7,7 +7,6 @@ mod common;
 
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -15,7 +14,7 @@ use tokio::time::sleep;
 mod working_offload_tests {
     use super::*;
     use crate::common::{connect_to_kafka, create_topic, delete_topic, produce_messages, SETUP};
-    use blink::kafka::storage::MEMORY;
+    use blink::alloc::global_allocator;
     use blink::settings::SETTINGS;
     use kafka_protocol::messages::TopicName;
     use kafka_protocol::protocol::StrBytes;
@@ -114,7 +113,7 @@ mod working_offload_tests {
         let large_value_static = large_value.leak();
 
         // Get initial memory
-        let initial_memory = MEMORY.load(Ordering::Relaxed);
+        let initial_memory = global_allocator().current_allocated();
         println!("\nInitial memory usage: {} bytes", initial_memory);
 
         // Produce messages using the helper function
@@ -137,7 +136,7 @@ mod working_offload_tests {
         sleep(Duration::from_secs(2)).await;
 
         // Check memory usage
-        let final_memory = MEMORY.load(Ordering::Relaxed);
+        let final_memory = global_allocator().current_allocated();
         println!(
             "\nFinal memory usage: {} bytes ({:.2} MB)",
             final_memory,
@@ -191,7 +190,7 @@ mod working_offload_tests {
         create_topic(topic_name.clone(), &mut socket, 1);
 
         // Track memory changes
-        let initial = MEMORY.load(Ordering::Relaxed);
+        let initial = global_allocator().current_allocated();
         println!("Initial memory: {} bytes", initial);
 
         // Produce a few small messages
@@ -203,7 +202,7 @@ mod working_offload_tests {
 
         sleep(Duration::from_millis(500)).await;
 
-        let after_produce = MEMORY.load(Ordering::Relaxed);
+        let after_produce = global_allocator().current_allocated();
         println!("After producing: {} bytes", after_produce);
         println!("Memory increase: {} bytes", after_produce - initial);
 

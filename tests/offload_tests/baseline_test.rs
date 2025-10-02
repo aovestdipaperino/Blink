@@ -4,12 +4,11 @@
 // Author: Enzo Lombardi
 //
 use crate::common::{connect_to_kafka, create_topic, delete_topic, fetch_records, produce_records};
-use blink::kafka::storage::MEMORY;
+use blink::alloc::global_allocator;
 use blink::settings::SETTINGS;
 use blink::util::Util;
 use kafka_protocol::messages::TopicName;
 use kafka_protocol::protocol::StrBytes;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -25,7 +24,7 @@ async fn test_baseline_produce_consume() {
     let mut socket = connect_to_kafka();
     create_topic(topic_name.clone(), &mut socket, 1);
 
-    let initial_memory = MEMORY.load(Ordering::Relaxed);
+    let initial_memory = global_allocator().current_allocated();
     println!("Initial memory usage: {} bytes", initial_memory);
 
     // Create a small record (1KB)
@@ -50,7 +49,7 @@ async fn test_baseline_produce_consume() {
         }
     }
 
-    let after_produce_memory = MEMORY.load(Ordering::Relaxed);
+    let after_produce_memory = global_allocator().current_allocated();
     println!(
         "Memory after produce: {} bytes (increase: {} bytes)",
         after_produce_memory,
@@ -84,7 +83,7 @@ async fn test_memory_tracking() {
     let max_memory = SETTINGS.max_memory;
     println!("Max memory limit: {} bytes", max_memory);
 
-    let initial_memory = MEMORY.load(Ordering::Relaxed);
+    let initial_memory = global_allocator().current_allocated();
     println!("Initial memory: {} bytes", initial_memory);
 
     // Test with increasing record sizes
@@ -93,7 +92,7 @@ async fn test_memory_tracking() {
     for (i, size) in sizes.iter().enumerate() {
         println!("\n--- Test {}: {}KB record ---", i + 1, size / 1024);
 
-        let before_memory = MEMORY.load(Ordering::Relaxed);
+        let before_memory = global_allocator().current_allocated();
         println!("Memory before produce: {} bytes", before_memory);
 
         let data = "x".repeat(*size);
@@ -103,7 +102,7 @@ async fn test_memory_tracking() {
         // Try to produce the record
         match produce_records(topic_name.clone(), 0, &vec![record], &mut socket) {
             Ok(_) => {
-                let after_memory = MEMORY.load(Ordering::Relaxed);
+                let after_memory = global_allocator().current_allocated();
                 println!(
                     "✅ Produce succeeded. Memory after: {} bytes (increase: {} bytes)",
                     after_memory,
@@ -127,7 +126,7 @@ async fn test_memory_tracking() {
         sleep(Duration::from_millis(200)).await;
 
         // Check if we're approaching memory limits
-        let current_memory = MEMORY.load(Ordering::Relaxed);
+        let current_memory = global_allocator().current_allocated();
         if current_memory >= max_memory {
             println!(
                 "⚠️  Approaching memory threshold: {} / {} bytes",
@@ -136,7 +135,7 @@ async fn test_memory_tracking() {
         }
     }
 
-    let final_memory = MEMORY.load(Ordering::Relaxed);
+    let final_memory = global_allocator().current_allocated();
     println!("\nFinal memory usage: {} bytes", final_memory);
 
     // Cleanup
@@ -180,7 +179,7 @@ async fn test_offload_directory_creation() {
     println!("Creating records of size: {} KB", record_size / 1024);
 
     for i in 0..50 {
-        let before_memory = MEMORY.load(Ordering::Relaxed);
+        let before_memory = global_allocator().current_allocated();
         println!(
             "\nProducing record {} (memory before: {} KB)",
             i,
@@ -194,7 +193,7 @@ async fn test_offload_directory_creation() {
         // Try to produce the record
         match produce_records(topic_name.clone(), 0, &vec![record], &mut socket) {
             Ok(_) => {
-                let after_memory = MEMORY.load(Ordering::Relaxed);
+                let after_memory = global_allocator().current_allocated();
                 println!(
                     "✅ Record {} produced (memory after: {} KB)",
                     i,
@@ -231,7 +230,7 @@ async fn test_offload_directory_creation() {
     }
 
     // Final check
-    let current_memory = MEMORY.load(Ordering::Relaxed);
+    let current_memory = global_allocator().current_allocated();
     println!("\nFinal state:");
     println!("  Memory usage: {} KB", current_memory / 1024);
     println!("  Memory threshold: {} KB", SETTINGS.max_memory / 1024);
