@@ -76,6 +76,17 @@ macro_rules! api_version_min {
     };
 }
 
+macro_rules! api_version_range {
+    ($api_name:ident, $min_version:expr, $max_version:expr) => {
+        paste! {
+            ApiVersion::default()
+                .with_api_key($api_name as i16)
+                .with_min_version($min_version)
+                .with_max_version($max_version)
+        }
+    };
+}
+
 macro_rules! api_version {
     ($api_name:ident) => {
         api_version_min!($api_name, 0)
@@ -97,7 +108,7 @@ static SUPPORTED_APIS: Lazy<Vec<ApiVersion>> = Lazy::new(|| {
     // Only include consumer group-related APIs if enabled in settings
     if SETTINGS.enable_consumer_groups {
         apis.extend(vec![
-            api_version!(FindCoordinator),
+            api_version_range!(FindCoordinator, 0, 4),
             api_version!(Heartbeat),
             api_version!(OffsetCommit),
             api_version_min!(OffsetFetch, 8),
